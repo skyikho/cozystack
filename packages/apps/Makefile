@@ -13,7 +13,7 @@ repo:
 	rm -rf "$(TMP)"
 
 fix-chartnames:
-	find . -maxdepth 2 -name Chart.yaml  | $(AWK_CMD) -F/ '{print $$2}' | while read i; do $(SED_CMD) "s/^name: .*/name: $$i/" "$$i/Chart.yaml"; done
+	find . -name Chart.yaml -maxdepth 2 | $(AWK_CMD) -F/ '{print $$2}' | while read i; do $(SED_CMD) "s/^name: .*/name: $$i/" "$$i/Chart.yaml"; done
 
 gen-versions-map: fix-chartnames
 	../../hack/gen_versions_map.sh
