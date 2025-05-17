@@ -31,7 +31,6 @@ releases:
   dependsOn: []
   valuesFiles:
   - values.yaml
-  - values-talos.yaml
   - values-kubeovn.yaml
 
 - name: cilium-networkpolicy
@@ -56,6 +55,9 @@ releases:
         POD_GATEWAY: "{{ index $cozyConfig.data "ipv4-pod-gateway" }}"
         SVC_CIDR: "{{ index $cozyConfig.data "ipv4-svc-cidr" }}"
         JOIN_CIDR: "{{ index $cozyConfig.data "ipv4-join-cidr" }}"
+  valuesFiles:
+    - values.yaml
+    - values-ubuntu.yaml
 
 - name: kubeovn-webhook
   releaseName: kubeovn-webhook
@@ -158,16 +160,16 @@ releases:
   namespace: cozy-kubevirt-cdi
   dependsOn: [cilium,kubeovn,kubevirt-cdi-operator]
 
-- name: gpu-operator
-  releaseName: gpu-operator
-  chart: cozy-gpu-operator
-  namespace: cozy-gpu-operator
-  privileged: true
-  optional: true
-  dependsOn: [cilium,kubeovn]
-  valuesFiles:
-  - values.yaml
-  - values-talos.yaml
+#- name: gpu-operator
+#  releaseName: gpu-operator
+#  chart: cozy-gpu-operator
+#  namespace: cozy-gpu-operator
+#  privileged: true
+#  optional: true
+#  dependsOn: [cilium,kubeovn]
+#  valuesFiles:
+#  - values.yaml
+#  - values-talos.yaml
 
 - name: metallb
   releaseName: metallb

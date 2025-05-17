@@ -1,4 +1,4 @@
-REGISTRY := ghcr.io/cozystack/cozystack
+REGISTRY := ccpr.cocktailcloud.io/cozystack
 PUSH := 1
 LOAD := 0
 COZYSTACK_VERSION = $(patsubst v%,%,$(shell git describe --tags))
@@ -10,7 +10,7 @@ $(if $(filter $(TAG),latest),latest,$(1))
 endef
 
 ifeq ($(COZYSTACK_VERSION),)
-    $(shell git remote add upstream https://github.com/cozystack/cozystack.git || true)
+    $(shell git remote add upstream https://github.com/skyikho/cozystack.git || true)
     $(shell git fetch upstream --tags)
     COZYSTACK_VERSION = $(patsubst v%,%,$(shell git describe --tags))
 endif
@@ -18,5 +18,18 @@ endif
 # Get the name of the selected docker buildx builder
 BUILDER ?= $(shell docker buildx inspect --bootstrap | head -n2 | awk '/^Name:/{print $$NF}')
 # Get platforms supported by the builder
-PLATFORM ?= $(shell docker buildx ls --format=json | jq -r 'select(.Name == "$(BUILDER)") | [.Nodes[].Platforms // []] | flatten | unique | map(select(test("^linux/amd64$$|^linux/arm64$$"))) | join(",")')
+#PLATFORM ?= $(shell docker buildx ls --format=json | jq -r 'select(.Name == "$(BUILDER)") | [.Nodes[].Platforms // []] | flatten | unique | map(select(test("^linux/amd64$$|^linux/arm64$$"))) | join(",")')
+PLATFORM = linux/amd64
 
+## ADD skyikho
+OS = $(shell uname -s)
+
+# Define sed command based on OS
+ifeq ($(OS), Darwin)
+    SED_CMD = sed -i ''
+    AWK_CMD = gawk
+else
+    SED_CMD = sed -i
+    AWK_CMD = awk
+endif
+## ADD skyikho

@@ -20,7 +20,8 @@ diff:
 update:
 	hack/gen-profiles.sh
 
-image: pre-checks image-matchbox image-cozystack image-talos
+#image: pre-checks image-matchbox image-cozystack image-talos
+image: image-cozystack
 
 image-cozystack:
 	make -C ../../.. repos

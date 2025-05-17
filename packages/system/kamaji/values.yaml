@@ -3,8 +3,8 @@ kamaji:
     deploy: false
   image:
     pullPolicy: IfNotPresent
-    tag: latest@sha256:f6a33408df8d3c4223005392bcd8bae9d8c02fd73e2540bbaa911dedb7880ea8
-    repository: ghcr.io/cozystack/cozystack/kamaji
+    tag: 0.30.6@sha256:c003b9d2503ff126f2f9ec01629fe4012c765a6cd548796656137e56c071f98c
+    repository: ccpr.cocktailcloud.io/cozystack/kamaji
   resources:
     limits:
       cpu: 200m
