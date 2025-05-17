@@ -1,5 +1,6 @@
-ingress 1.6.0 HEAD
-info 1.0.1 HEAD
 etcd 2.7.0 HEAD
-seaweedfs 0.4.0 HEAD
+info 1.0.1 HEAD
+ingress 1.6.0 HEAD
 monitoring 1.9.2 HEAD
+seaweedfs 0.4.0 HEAD
+  HEAD
