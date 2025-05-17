@@ -1,6 +1,0 @@
-apiVersion: v2
-name: bootbox
-description: PXE hardware provisioning
-icon: /logos/bootbox.svg
-type: application
-version: 0.1.1
