@@ -6,9 +6,9 @@ metadata:
 spec:
   instances: {{ .Values.replicas }}
   {{- if .Values.resources }}
-  resources: {{- toYaml .Values.resources | nindent 4 }}
+  resources: {{- include "cozy-lib.resources.sanitize" (list .Values.resources $) | nindent 4 }}
   {{- else if ne .Values.resourcesPreset "none" }}
-  resources: {{- include "resources.preset" (dict "type" .Values.resourcesPreset "Release" .Release) | nindent 4 }}
+  resources: {{- include "cozy-lib.resources.preset" (list .Values.resourcesPreset $) | nindent 4 }}
   {{- end }}
 
   enableSuperuserAccess: true
@@ -17,6 +17,9 @@ spec:
   {{- $rawConstraints := get $configMap.data "globalAppTopologySpreadConstraints" }}
   {{- if $rawConstraints }}
   {{- $rawConstraints | fromYaml | toYaml | nindent 2 }}
+    labelSelector:
+      matchLabels:
+        cnpg.io/cluster: {{ .Release.Name }}
   {{- end }}
   {{- end }}
   postgresql:
@@ -41,6 +44,8 @@ spec:
   inheritedMetadata:
     labels:
       policy.cozystack.io/allow-to-apiserver: "true"
+      app.kubernetes.io/name: postgres.apps.cozystack.io
+      app.kubernets.io/instance: {{ $.Release.Name }}
 ---
 apiVersion: cozystack.io/v1alpha1
 kind: WorkloadMonitor
@@ -52,6 +57,6 @@ spec:
   kind: postgres
   type: postgres
   selector:
-    cnpg.io/cluster: {{ .Release.Name }}
-    cnpg.io/podRole: instance
+    app.kubernetes.io/name: postgres.apps.cozystack.io
+    app.kubernets.io/instance: {{ $.Release.Name }}
   version: {{ $.Chart.Version }}

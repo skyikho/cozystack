@@ -30,8 +30,15 @@ image-e2e-sandbox:
 		yq -i '.e2e.image = strenv(IMAGE)' values.yaml
 	rm -f images/e2e-sandbox.json
 
-test: ## Run the end-to-end tests in existing sandbox.
-	docker exec "${SANDBOX_NAME}" sh -c 'cd /workspace && export COZYSTACK_INSTALLER_YAML=$$(helm template -n cozy-system installer ./packages/core/installer) && hack/e2e.sh'
+test: test-cluster test-apps ## Run the end-to-end tests in existing sandbox
+
+test-cluster: ## Run the end-to-end for creating a cluster
+	docker cp ../../../_out/assets/cozystack-installer.yaml "${SANDBOX_NAME}":/workspace/_out/assets/cozystack-installer.yaml
+	docker cp ../../../_out/assets/nocloud-amd64.raw.xz "${SANDBOX_NAME}":/workspace/_out/assets/nocloud-amd64.raw.xz
+	docker exec "${SANDBOX_NAME}" sh -c 'cd /workspace && hack/cozytest.sh hack/e2e-cluster.bats'
+
+test-apps: ## Run the end-to-end tests for apps
+	docker exec "${SANDBOX_NAME}" sh -c 'cd /workspace && hack/cozytest.sh hack/e2e-apps.bats'
 
 delete: ## Remove sandbox from existing Kubernetes cluster.
 	docker rm -f "${SANDBOX_NAME}" || true
@@ -40,5 +47,10 @@ exec:  ## Opens an interactive shell in the sandbox container.
 	docker exec -ti "${SANDBOX_NAME}" bash
 
 apply: delete
-	docker run -d --rm --name "${SANDBOX_NAME}" --privileged "$$(yq .e2e.image values.yaml)" sleep infinity
+	docker run \
+		-d --rm --name "${SANDBOX_NAME}" --privileged \
+		-e TALOSCONFIG=/workspace/talosconfig \
+		-e KUBECONFIG=/workspace/kubeconfig \
+		"$$(yq .e2e.image values.yaml)" \
+		sleep infinity
 	docker cp "${ROOT_DIR}" "${SANDBOX_NAME}":/workspace

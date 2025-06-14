@@ -9,8 +9,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  e2e:
-    name: Build and Test
+  build:
+    name: Build
     runs-on: [self-hosted]
     permissions:
       contents: read
@@ -33,9 +33,50 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
           registry: ghcr.io
+        env:
+          DOCKER_CONFIG: ${{ runner.temp }}/.docker
 
       - name: Build
         run: make build
+        env:
+          DOCKER_CONFIG: ${{ runner.temp }}/.docker
+
+      - name: Build Talos image
+        run: make -C packages/core/installer talos-nocloud
+     
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: cozystack-installer
+          path: _out/assets/cozystack-installer.yaml
+
+      - name: Upload Talos image
+        uses: actions/upload-artifact@v4
+        with:
+          name: talos-image
+          path: _out/assets/nocloud-amd64.raw.xz
+ 
+  test:
+    name: Test
+    runs-on: [self-hosted]
+    needs: build
+
+    # Never run when the PR carries the "release" label.
+    if: |
+      !contains(github.event.pull_request.labels.*.name, 'release')
+
+    steps:
+      - name: Download installer
+        uses: actions/download-artifact@v4
+        with:
+          name: cozystack-installer
+          path: _out/assets/
+
+      - name: Download Talos image
+        uses: actions/download-artifact@v4
+        with:
+          name: talos-image
+          path: _out/assets/
 
       - name: Test
         run: make test

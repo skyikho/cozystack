@@ -16,7 +16,6 @@ jobs:
       contents: read
       packages: write
 
-    # Run only when the PR carries the "release" label and not closed.
     if: |
       contains(github.event.pull_request.labels.*.name, 'release') &&
       github.event.action != 'closed'
@@ -34,6 +33,64 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
           registry: ghcr.io
+
+      - name: Extract tag from PR branch
+        id: get_tag
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branch = context.payload.pull_request.head.ref;
+            const m = branch.match(/^release-(\d+\.\d+\.\d+(?:[-\w\.]+)?)$/);
+            if (!m) {
+              core.setFailed(`❌ Branch '${branch}' does not match 'release-X.Y.Z[-suffix]'`);
+              return;
+            }
+            const tag = `v${m[1]}`;
+            core.setOutput('tag', tag);
+
+      - name: Find draft release and get asset IDs
+        id: fetch_assets
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GH_PAT }}
+          script: |
+            const tag = '${{ steps.get_tag.outputs.tag }}';
+            const releases = await github.rest.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            const draft = releases.data.find(r => r.tag_name === tag && r.draft);
+            if (!draft) {
+              core.setFailed(`Draft release '${tag}' not found`);
+              return;
+            }
+            const findAssetId = (name) =>
+              draft.assets.find(a => a.name === name)?.id;
+            const installerId = findAssetId("cozystack-installer.yaml");
+            const diskId = findAssetId("nocloud-amd64.raw.xz");
+            if (!installerId || !diskId) {
+              core.setFailed("Missing required assets");
+              return;
+            }
+            core.setOutput("installer_id", installerId);
+            core.setOutput("disk_id", diskId);
+      
+      - name: Download assets from GitHub API
+        run: |
+          mkdir -p _out/assets
+          curl -sSL \
+            -H "Authorization: token ${GH_PAT}" \
+            -H "Accept: application/octet-stream" \
+            -o _out/assets/cozystack-installer.yaml \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/assets/${{ steps.fetch_assets.outputs.installer_id }}"
+          curl -sSL \
+            -H "Authorization: token ${GH_PAT}" \
+            -H "Accept: application/octet-stream" \
+            -o _out/assets/nocloud-amd64.raw.xz \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/assets/${{ steps.fetch_assets.outputs.disk_id }}"
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
 
       - name: Run tests
         run: make test
@@ -80,6 +137,7 @@ jobs:
       - name: Ensure maintenance branch release-X.Y
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.GH_PAT }}
           script: |
             const tag = '${{ steps.get_tag.outputs.tag }}';  // e.g. v0.1.3 or v0.1.3-rc3
             const match = tag.match(/^v(\d+)\.(\d+)\.\d+(?:[-\w\.]+)?$/);
@@ -89,21 +147,45 @@ jobs:
             }
             const line = `${match[1]}.${match[2]}`;
             const branch = `release-${line}`;
+
+            // Get main branch commit for the tag
+            const ref = await github.rest.git.getRef({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              ref:   `tags/${tag}`
+            });
+
+            const commitSha = ref.data.object.sha;
+
             try {
               await github.rest.repos.getBranch({
                 owner: context.repo.owner,
-                repo:  context.repo.repo,
+                repo: context.repo.repo,
                 branch
               });
-              console.log(`Branch '${branch}' already exists`);
-            } catch (_) {
-              await github.rest.git.createRef({
+           
+              await github.rest.git.updateRef({
                 owner: context.repo.owner,
-                repo:  context.repo.repo,
-                ref:   `refs/heads/${branch}`,
-                sha:   context.sha
+                repo: context.repo.repo,
+                ref: `heads/${branch}`,
+                sha: commitSha,
+                force: true
               });
-              console.log(`✅ Branch '${branch}' created at ${context.sha}`);
+              console.log(`🔁 Force-updated '${branch}' to ${commitSha}`);
+            } catch (err) {
+              if (err.status === 404) {
+                await github.rest.git.createRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: `refs/heads/${branch}`,
+                  sha: commitSha
+                });
+                console.log(`✅ Created branch '${branch}' at ${commitSha}`);
+              } else {
+                console.error('Unexpected error --', err);
+                core.setFailed(`Unexpected error creating/updating branch: ${err.message}`);
+                throw err;
+              }
             }
 
       # Get the latest published release
@@ -137,12 +219,12 @@ jobs:
         with:
           script: |
             const tag = '${{ steps.get_tag.outputs.tag }}';              // v0.31.5-rc.1
-            const m = tag.match(/^v(\d+\.\d+\.\d+)(-rc\.\d+)?$/);
+            const m = tag.match(/^v(\d+\.\d+\.\d+)(-(?:alpha|beta|rc)\.\d+)?$/);
             if (!m) {
-              core.setFailed(`❌ tag '${tag}' must match 'vX.Y.Z' or 'vX.Y.Z-rc.N'`);
+              core.setFailed(`❌ tag '${tag}' must match 'vX.Y.Z' or 'vX.Y.Z-(alpha|beta|rc).N'`);
               return;
             }
-            const version = m[1] + (m[2] ?? '');                         // 0.31.5‑rc.1
+            const version = m[1] + (m[2] ?? '');                         // 0.31.5-rc.1
             const isRc    = Boolean(m[2]);
             core.setOutput('is_rc',      isRc);
             const outdated = '${{ steps.semver.outputs.comparison-result }}' === '<';
