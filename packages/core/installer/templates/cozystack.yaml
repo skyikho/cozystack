@@ -55,7 +55,7 @@ spec:
         - name: KUBERNETES_SERVICE_HOST
           value: localhost
         - name: KUBERNETES_SERVICE_PORT
-          value: "7445"
+          value: "6443"
         - name: K8S_AWAIT_ELECTION_ENABLED
           value: "1"
         - name: K8S_AWAIT_ELECTION_NAME

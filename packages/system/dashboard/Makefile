@@ -71,4 +71,4 @@ image-kubeapps-apis: update-version
 	rm -f images/kubeapps-apis.json
 
 update-version:
-	sed -i "s|\(\"appVersion\":\).*|\1 \"$(TAG)\",|g" ./charts/kubeapps/templates/dashboard/configmap.yaml
+	$(SED_CMD)  "s|\(\"appVersion\":\).*|\1 \"$(TAG)\",|g" ./charts/kubeapps/templates/dashboard/configmap.yaml
